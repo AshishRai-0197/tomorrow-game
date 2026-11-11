@@ -1,0 +1,51 @@
+# Code-only repository.
+# Everything is ignored EXCEPT source code and the small text files Unity needs to open the project.
+# Not in git: Unity cache (Library, Temp, Logs), builds, the listing kit, 3D models, Blender files,
+# audio, images, fonts and scenes. Keep those backed up elsewhere.
+
+# 1. Ignore everything at the top level...
+/*
+
+# 2. ...then let these back in.
+!/.gitignore
+!/README.md
+
+# Python asset tools (voices, music, logo, buildings)
+!/Tools/
+/Tools/*
+!/Tools/*.py
+
+# Package list, so Unity installs the same packages
+!/Packages/
+/Packages/*
+!/Packages/manifest.json
+!/Packages/packages-lock.json
+
+# Project settings (small text files)
+!/ProjectSettings/
+
+# Game code: only C# scripts and their .meta files (the .meta keeps each script's ID stable)
+!/Assets/
+/Assets/*
+!/Assets/Game/
+/Assets/Game/*
+!/Assets/Game/README.md
+!/Assets/Game/Scripts/
+!/Assets/Game/Editor/
+/Assets/Game/Scripts/**/*.*
+/Assets/Game/Editor/**/*.*
+!/Assets/Game/Scripts/**/*.cs
+!/Assets/Game/Scripts/**/*.cs.meta
+!/Assets/Game/Editor/**/*.cs
+!/Assets/Game/Editor/**/*.cs.meta
+
+# 3. Never commit these, wherever they are
+.DS_Store
+*.blend1
+*.tmp
+*.csproj
+*.sln
+*.slnx
+
+# Settings left by removed packages
+/ProjectSettings/Packages/com.unity.ai.assistant/
