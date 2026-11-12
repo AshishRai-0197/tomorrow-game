@@ -101,7 +101,7 @@ namespace Tomorrow.EditorTools
             // parts around the market
             var spring = K.Pickup("Pickup_Spring", ItemId.Spring, new Vector3(-5.4f, 0.02f, 26.6f));
             K.Prim(PrimitiveType.Cylinder, "Spring", spring.transform, new Vector3(0, 0.06f, 0), new Vector3(0.06f, 0.06f, 0.06f), K.Mat("Iron", new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.9f));
-            var plate = K.Pickup("Pickup_BrassPlate", ItemId.BrassPlate, new Vector3(1.6f, 0.02f, 28.1f));
+            var plate = K.Pickup("Pickup_BrassPlate", ItemId.BrassPlate, new Vector3(2.4f, 0.02f, 25.6f));
             K.Prim(PrimitiveType.Cylinder, "Plate", plate.transform, new Vector3(0, 0.01f, 0), new Vector3(0.22f, 0.01f, 0.22f), brass);
             var bar = K.Pickup("Pickup_IronBar", ItemId.IronBar, new Vector3(2.4f, 0.02f, 30.4f));
             K.Prim(PrimitiveType.Cylinder, "Bar", bar.transform, new Vector3(0, 0.04f, 0), new Vector3(0.05f, 0.25f, 0.05f), K.Mat("Iron", new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.9f)).transform.localRotation = Quaternion.Euler(0, 40, 90);
@@ -144,7 +144,7 @@ namespace Tomorrow.EditorTools
             }
 
             // Grandma's rose bush by the workshop door
-            var roses = new GameObject("Grandma's Rose Bush").transform; roses.SetParent(g, false); roses.position = new Vector3(1.9f, 0, 3.8f);
+            var roses = new GameObject("Grandma's Rose Bush").transform; roses.SetParent(g, false); roses.position = new Vector3(1.9f, 0, 4.6f);   // in front of the timber workshop front (which reaches z 3.93)
             K.Prim(PrimitiveType.Sphere, "Bush", roses, new Vector3(0, 0.28f, 0), new Vector3(0.7f, 0.55f, 0.6f), leaf);
             var rose = K.Mat("Rose", new Color(0.9f, 0.2f, 0.3f));
             for (int i = 0; i < 7; i++)
@@ -153,13 +153,13 @@ namespace Tomorrow.EditorTools
                 K.Prim(PrimitiveType.Sphere, "Rose", roses, new Vector3(Mathf.Cos(a) * 0.28f, 0.3f + (i % 3) * 0.1f, Mathf.Sin(a) * 0.24f - 0.05f), Vector3.one * 0.1f, rose);
             }
             dir.roseBush = roses.gameObject;
-            K.Use("Roses", "Water Grandma's roses", new Vector3(1.9f, 0, 3.2f), 1.2f);
-            K.Spot("Drop_Roses", new Vector3(0.9f, 0, 5f), 180);
-            K.Spot("Nell_Roses", new Vector3(2.5f, 0.02f, 3.6f), 250);
-            K.SpotLook("Cam_Roses", new Vector3(1.5f, 1.4f, 1.6f), new Vector3(2.2f, 0.35f, 3.7f));
+            K.Use("Roses", "Water Grandma's roses", new Vector3(1.9f, 0, 5.3f), 1.2f);
+            K.Spot("Drop_Roses", new Vector3(0.4f, 0, 5.9f), 180);
+            K.Spot("Nell_Roses", new Vector3(3.0f, 0.02f, 4.9f), 250);
+            K.SpotLook("Cam_Roses", new Vector3(0.4f, 1.8f, 7.8f), new Vector3(2.1f, 0.4f, 4.6f));
             var handle = K.Pickup("Pickup_Handle", ItemId.Handle, new Vector3(-8.5f, 0.02f, 29.0f));
             K.Box("Handle", handle.transform, new Vector3(0, 0.04f, 0), new Vector3(0.25f, 0.04f, 0.05f), K.Mat("Iron", new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.9f), false);
-            var stick = K.Pickup("Pickup_Stick", ItemId.Stick, new Vector3(-4.6f, 0.02f, 6.2f));
+            var stick = K.Pickup("Pickup_Stick", ItemId.Stick, new Vector3(-3.5f, 0.02f, 5.0f));
             K.Prim(PrimitiveType.Cylinder, "Stick", stick.transform, new Vector3(0, 0.03f, 0), new Vector3(0.03f, 0.25f, 0.03f), K.Mat("Stick", new Color(0.55f, 0.38f, 0.22f))).transform.localRotation = Quaternion.Euler(0, 20, 90);
             var can2 = K.Pickup("Pickup_TinCan2", ItemId.TinCan, new Vector3(-11f, 0.02f, 19.8f));
             K.Prim(PrimitiveType.Cylinder, "Can", can2.transform, new Vector3(0, 0.06f, 0), new Vector3(0.1f, 0.06f, 0.1f), K.Mat("Tin", new Color(0.75f, 0.77f, 0.8f), 0.6f, 0.9f));

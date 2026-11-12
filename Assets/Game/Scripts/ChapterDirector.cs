@@ -74,15 +74,36 @@ namespace Tomorrow
         protected virtual void Setup() { }
         protected abstract IEnumerator Run();
 
+        /// <summary>Chapter number, title and the 5 part names, for the progress line and the end screen.</summary>
+        protected virtual int ChapterNumber => 1;
+        protected virtual string ChapterTitle => "";
+        protected virtual string NextChapterTitle => "";
+
+        /// <summary>Runs one part of the chapter and shows "Part n of 5" so the player always knows where they are.</summary>
+        protected IEnumerator Part(int n, string title, IEnumerator body)
+        {
+            ui.SetPart($"CHAPTER {ChapterNumber}  •  PART {n} OF 5  •  {title.ToUpperInvariant()}");
+            ui.ShowBanner($"Chapter {ChapterNumber}  •  Part {n} of 5", title);
+            yield return body;
+        }
+
         IEnumerator RunAndFinish()
         {
             yield return Run();
-            // wait for a key, then go on
             yield return Wait(1.5f);
-            ui.SetCaptionSub(Application.isMobilePlatform ? "Tap to continue" : "Press Space to continue");
-            while (!GameUI.AdvancePressed()) yield return null;
-            if (!string.IsNullOrEmpty(nextScene) && Application.CanStreamedLevelBeLoaded(nextScene))
-                SceneManager.LoadScene(nextScene);
+            ui.SetCaption(""); ui.SetPart(null); ui.SetObjective(null);
+            bool last = string.IsNullOrEmpty(NextChapterTitle);
+            int pick = 0;
+            yield return ui.ChapterComplete(
+                $"Chapter {ChapterNumber} complete!",
+                last ? $"\"{ChapterTitle}\"\nYou finished all three chapters. Pip's story continues soon..."
+                     : $"\"{ChapterTitle}\"\nNext: Chapter {ChapterNumber + 1}  -  {NextChapterTitle}",
+                last ? "Back to title" : "Continue",
+                last ? null : "Title screen",
+                i => pick = i);
+            var target = pick == 1 || last ? "Title" : nextScene;
+            if (!string.IsNullOrEmpty(target) && Application.CanStreamedLevelBeLoaded(target))
+                SceneManager.LoadScene(target);
         }
 
         // ------------------------------------------------------------------ loop

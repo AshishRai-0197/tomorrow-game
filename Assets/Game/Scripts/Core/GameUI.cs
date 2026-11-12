@@ -88,8 +88,12 @@ namespace Tomorrow
 
             // HUD
             clockText = MakeText(root, "Clock", 34, TextAnchor.UpperRight, Color.white, new Vector2(1, 1), new Vector2(-30, -24), new Vector2(420, 60));
-            objectiveText = MakeText(root, "Objective", 28, TextAnchor.UpperLeft, Color.white, new Vector2(0, 1), new Vector2(30, -24), new Vector2(900, 90));
-            debtText = MakeText(root, "Debts", 24, TextAnchor.UpperLeft, TomorrowBlue, new Vector2(0, 1), new Vector2(30, -110), new Vector2(700, 220));
+            hudBack = MakePanel(root, "HUD Back", new Color(0.16f, 0.10f, 0.07f, 0.72f), new Vector2(0, 1), new Vector2(16, -12), new Vector2(940, 134));
+            var hb = hudBack.GetComponent<RectTransform>(); hb.pivot = new Vector2(0, 1); hb.anchoredPosition = new Vector2(16, -12);
+            partText = MakeText(root, "Part", 24, TextAnchor.UpperLeft, Brass, new Vector2(0, 1), new Vector2(30, -22), new Vector2(900, 36));
+            partText.fontStyle = FontStyle.Bold;
+            objectiveText = MakeText(root, "Objective", 28, TextAnchor.UpperLeft, Color.white, new Vector2(0, 1), new Vector2(30, -58), new Vector2(900, 80));
+            debtText = MakeText(root, "Debts", 24, TextAnchor.UpperLeft, TomorrowBlue, new Vector2(0, 1), new Vector2(30, -150), new Vector2(700, 220));
             invText = MakeText(root, "Inventory", 24, TextAnchor.LowerLeft, Color.white, new Vector2(0, 0), new Vector2(30, 330), new Vector2(560, 300));
             promptText = MakeText(root, "Prompt", 30, TextAnchor.MiddleCenter, Color.white, new Vector2(0.5f, 0), new Vector2(0, 300), new Vector2(900, 50));
             timerText = MakeText(root, "Timer", 64, TextAnchor.UpperCenter, new Color(1f, 0.55f, 0.35f), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(500, 90));
@@ -97,7 +101,12 @@ namespace Tomorrow
             heartText = MakeText(root, "Hearts", 30, TextAnchor.UpperRight, new Color(1f, 0.6f, 0.75f), new Vector2(1, 1), new Vector2(-30, -200), new Vector2(420, 120));
             captionSub = MakeText(root, "Caption Sub", 28, TextAnchor.MiddleCenter, new Color(1, 1, 1, 0.8f), new Vector2(0.5f, 0.5f), new Vector2(0, -120), new Vector2(1200, 60));
             captionText = MakeText(root, "Caption", 54, TextAnchor.MiddleCenter, Color.white, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1600, 300));
-            foreach (var t in new[] { clockText, objectiveText, debtText, invText, promptText, timerText, toastText, captionText })
+            bannerPanel = MakePanel(root, "Part Banner", new Color(0.24f, 0.15f, 0.10f, 0.92f), new Vector2(0.5f, 1), new Vector2(0, -150), new Vector2(760, 130));
+            bannerTop = MakeText(bannerPanel.transform, "Top", 26, TextAnchor.MiddleCenter, Brass, new Vector2(0.5f, 1), new Vector2(0, -14), new Vector2(720, 40));
+            bannerTitle = MakeText(bannerPanel.transform, "Title", 44, TextAnchor.MiddleCenter, Color.white, new Vector2(0.5f, 0), new Vector2(0, 14), new Vector2(720, 60));
+            bannerTitle.fontStyle = FontStyle.Bold;
+            bannerPanel.SetActive(false);
+            foreach (var t in new[] { clockText, objectiveText, debtText, invText, promptText, timerText, toastText, captionText, partText })
                 t.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(2, -2);
 
             // Dialogue box
@@ -132,6 +141,21 @@ namespace Tomorrow
             }
             choicePanel.SetActive(false);
 
+            // Chapter complete
+            endPanel = MakePanel(root, "Chapter Complete", new Color(0.24f, 0.15f, 0.10f, 0.96f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1100, 560));
+            endTitle = MakeText(endPanel.transform, "Title", 64, TextAnchor.MiddleCenter, Brass, new Vector2(0.5f, 1), new Vector2(0, -90), new Vector2(1000, 90));
+            endTitle.fontStyle = FontStyle.Bold;
+            endBody = MakeText(endPanel.transform, "Body", 32, TextAnchor.MiddleCenter, Color.white, new Vector2(0.5f, 1), new Vector2(0, -215), new Vector2(980, 140));
+            for (int i = 0; i < 2; i++)
+            {
+                var b = MakePanel(endPanel.transform, "Button" + i, i == 0 ? Brass : new Color(0.55f, 0.42f, 0.32f), new Vector2(0.5f, 0), new Vector2(i == 0 ? -230 : 230, 70), new Vector2(420, 90));
+                var btn = b.AddComponent<Button>(); int idx = i; btn.onClick.AddListener(() => endPick = idx);
+                var lt = MakeText(b.transform, "Label", 32, TextAnchor.MiddleCenter, Ink, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(400, 80));
+                lt.raycastTarget = false; lt.fontStyle = FontStyle.Bold;
+                endButtons.Add(lt);
+            }
+            endPanel.SetActive(false);
+
             // Fade on top of everything
             var fgo = new GameObject("Fade", typeof(RectTransform), typeof(Image));
             fgo.transform.SetParent(root, false);
@@ -147,6 +171,10 @@ namespace Tomorrow
         }
 
         Text[] allTexts;
+        GameObject hudBack, bannerPanel, endPanel;
+        Text partText, bannerTop, bannerTitle, endTitle, endBody;
+        readonly List<Text> endButtons = new List<Text>();
+        float bannerUntil; int endPick = -1;
 
         /// <summary>
         /// The built-in UI font has no fallback on Web/Android, so swap the few fancy symbols
@@ -176,11 +204,42 @@ namespace Tomorrow
         void Update()
         {
             if (toastText.text.Length > 0 && Time.time > toastUntil) toastText.text = "";
+            if (bannerPanel.activeSelf && Time.time > bannerUntil) bannerPanel.SetActive(false);
         }
 
         // ---------- HUD ----------
         public void SetPrompt(string s) { promptText.text = s == null ? "" : "[E]  " + s; }
-        public void SetObjective(string s) { objectiveText.text = string.IsNullOrEmpty(s) ? "" : "◆ " + s; }
+        public void SetObjective(string s) { objectiveText.text = string.IsNullOrEmpty(s) ? "" : "◆ " + s; hudBack.SetActive(objectiveText.enabled && (objectiveText.text.Length > 0 || partText.text.Length > 0)); }
+        public void SetPart(string s) { partText.text = s ?? ""; hudBack.SetActive(objectiveText.enabled && (objectiveText.text.Length > 0 || partText.text.Length > 0)); }
+
+        /// <summary>Big "Part 2 of 5" banner at the top for a few seconds.</summary>
+        public void ShowBanner(string top, string title, float secs = 3.2f)
+        {
+            bannerTop.text = top; bannerTitle.text = title; bannerPanel.SetActive(true); bannerUntil = Time.time + secs;
+        }
+
+        /// <summary>End-of-chapter screen. picked(0) = continue, picked(1) = title screen.</summary>
+        public IEnumerator ChapterComplete(string title, string body, string continueLabel, string secondLabel, System.Action<int> picked)
+        {
+            Busy = true; endPick = -1;
+            endTitle.text = title; endBody.text = body;
+            endButtons[0].text = continueLabel;
+            endButtons[1].transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(secondLabel));
+            endButtons[1].text = secondLabel ?? "";
+            bannerPanel.SetActive(false);
+            endPanel.SetActive(true); endPanel.transform.SetAsLastSibling();
+            Cursor.visible = true;
+            yield return new WaitForSeconds(0.6f);
+            while (endPick < 0)
+            {
+                if (AdvancePressed()) endPick = 0;
+                var k = Keyboard.current;
+                if (k != null && k.escapeKey.wasPressedThisFrame && endButtons[1].transform.parent.gameObject.activeSelf) endPick = 1;
+                yield return null;
+            }
+            endPanel.SetActive(false); Busy = false;
+            picked(endPick);
+        }
         public void SetClock(string s) { clockText.text = s; }
         public void SetTimer(string s) { timerText.text = s ?? ""; }
         public void Toast(string s, float secs = 2.2f) { toastText.text = s; toastUntil = Time.time + secs; }
@@ -188,7 +247,8 @@ namespace Tomorrow
         public void SetCaptionSub(string s) { captionSub.text = s ?? ""; captionSub.transform.SetAsLastSibling(); }
         public void SetHudVisible(bool v)
         {
-            foreach (var t in new[] { clockText, objectiveText, debtText, invText, promptText, heartText }) t.enabled = v;
+            foreach (var t in new[] { clockText, objectiveText, debtText, invText, promptText, heartText, partText }) t.enabled = v;
+            hudBack.SetActive(v && (objectiveText.text.Length > 0 || partText.text.Length > 0));
             if (helpText) helpText.enabled = v;
         }
 

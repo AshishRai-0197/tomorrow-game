@@ -41,14 +41,18 @@ namespace Tomorrow
             if (mirror) mirror.gameObject.SetActive(false);
         }
 
+        protected override int ChapterNumber => 3;
+        protected override string ChapterTitle => "Market Day";
+        protected override string NextChapterTitle => "";
+
         protected override IEnumerator Run()
         {
             yield return Opening();
-            yield return Puzzle1_MarketDay();
-            yield return Puzzle2_Seeds();
-            yield return Puzzle3_WiltedGift();
-            yield return Puzzle4_TradingPromises();
-            yield return Puzzle5_GlassRoof();
+            yield return Part(1, "Market Day", Puzzle1_MarketDay());
+            yield return Part(2, "Seeds for Tomorrow", Puzzle2_Seeds());
+            yield return Part(3, "Grandma's Roses", Puzzle3_WiltedGift());
+            yield return Part(4, "Trading Promises", Puzzle4_TradingPromises());
+            yield return Part(5, "The Glass Roof", Puzzle5_GlassRoof());
             yield return Ending();
         }
 
@@ -545,7 +549,6 @@ namespace Tomorrow
             yield return Say(NELL, "…That's tomorrow's card. You haven't written it yet.");
             yield return Say(PIP, "Then I'd better start practicing.");
             yield return ui.Fade(1f, 2f);
-            ui.SetCaption("END OF CHAPTER 3");
         }
     }
 }

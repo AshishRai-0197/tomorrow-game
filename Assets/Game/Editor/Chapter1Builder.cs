@@ -651,6 +651,13 @@ namespace Tomorrow.EditorTools
             var l = new GameObject("Sparkle").AddComponent<Light>();
             l.type = LightType.Point; l.range = 0.9f; l.intensity = 1.2f; l.color = new Color(1f, 0.9f, 0.6f);
             l.transform.SetParent(go.transform, false); l.transform.localPosition = Vector3.up * 0.3f;
+            // a spinning gold diamond above it, so the part is easy to find in daylight
+            var marker = new GameObject("Beacon").transform;
+            marker.SetParent(go.transform, false); marker.localPosition = Vector3.up * 0.95f;
+            var gem = Prim(PrimitiveType.Cube, "Diamond", marker, Vector3.zero, new Vector3(0.16f, 0.16f, 0.16f), BeaconMat());
+            gem.transform.localRotation = Quaternion.Euler(45f, 0, 45f);
+            gem.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            marker.gameObject.AddComponent<Beacon>();
             return go;
         }
 
@@ -666,6 +673,16 @@ namespace Tomorrow.EditorTools
             var t = new GameObject(name).transform;
             t.SetParent(spots, false);
             t.SetPositionAndRotation(pos, Quaternion.LookRotation(lookAt - pos));
+        }
+
+        static Material BeaconMat()
+        {
+            var m = Mat("Pickup_Beacon", new Color(1f, 0.78f, 0.25f), 0.6f, 0.2f);
+            m.EnableKeyword("_EMISSION");
+            m.SetColor("_EmissionColor", new Color(1f, 0.72f, 0.2f) * 2.2f);
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         public static Material Mat(string name, Color c, float smooth = 0.25f, float metal = 0f)
