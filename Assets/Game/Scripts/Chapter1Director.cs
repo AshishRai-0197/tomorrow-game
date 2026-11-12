@@ -41,14 +41,18 @@ namespace Tomorrow
         void RegisterWorkshopTools() => toolsOn = true;
 
         // ------------------------------------------------------------------ the chapter
+        protected override int ChapterNumber => 1;
+        protected override string ChapterTitle => "Borrow. Use. Build. Return.";
+        protected override string NextChapterTitle => "The Harbor";
+
         protected override IEnumerator Run()
         {
             yield return Intro();
-            yield return Puzzle1_StuckDoor();
-            yield return Puzzle2_BrokenBridge();
-            yield return Puzzle3_FreezingGreenhouse();
-            yield return Puzzle4_ColdOven();
-            yield return Puzzle5_GreatClock();
+            yield return Part(1, "The Stuck Door", Puzzle1_StuckDoor());
+            yield return Part(2, "The Broken Bridge", Puzzle2_BrokenBridge());
+            yield return Part(3, "The Freezing Greenhouse", Puzzle3_FreezingGreenhouse());
+            yield return Part(4, "The Silent Bakery", Puzzle4_ColdOven());
+            yield return Part(5, "Sunset at the Clock", Puzzle5_GreatClock());
             yield return Ending();
         }
 
@@ -697,7 +701,6 @@ namespace Tomorrow
             sfx.Tick();
             yield return greatClock.TickOnce();
             yield return Wait(0.8f);
-            ui.SetCaption("END OF CHAPTER 1");
         }
 
         IEnumerator FinalBox(Action done)
