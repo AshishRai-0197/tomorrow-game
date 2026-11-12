@@ -18,6 +18,8 @@ namespace Tomorrow
         public static string[] Route;
         public static string OutDir;
         public const int Fps = 30;
+        /// <summary>QA mode: keep every Nth frame at a smaller size (1 = every frame, full HD).</summary>
+        public static int Stride = 1; public static int W = 1920, H = 1080;
 
         string clipDir; int frame; bool recording;
         float since, voiceEnds; int voiceSeen;
@@ -65,7 +67,7 @@ namespace Tomorrow
                 since = 0;
                 yield return d.DebugUse(target);
                 while (!d.IsIdle) yield return null;
-                Debug.Log($"[Trailer] used {raw}");
+                Debug.Log($"[Trailer] used {raw} frame={frame}");
             }
             SetRecording(false);
             voices?.Close();
@@ -123,7 +125,7 @@ namespace Tomorrow
                 var now = d.player.transform.position;
                 stuck = (now - last).magnitude < 0.3f * Time.deltaTime ? stuck + Time.deltaTime : 0;
                 last = now;
-                if (stuck > 0.8f) break;   // blocked: the next step teleports (a cut in the edit)
+                if (stuck > 0.8f) { Debug.LogWarning($"[Trailer] BLOCKED walking to {to} at {now}"); break; }
             }
             PlayerController.ScriptedMove = Vector3.zero;
             var p = to - d.player.transform.forward * 0.1f;
@@ -133,14 +135,15 @@ namespace Tomorrow
 
         // Renders the game camera (with the UI moved onto it) into a 1920x1080 texture every frame,
         // so recording doesn't depend on the editor's Game view being visible.
-        RenderTexture rt; Texture2D grab;
+        RenderTexture rt; Texture2D grab; int rawFrame;
         IEnumerator Capture() { yield break; }
 
         void LateUpdate()
         {
             if (!recording) return;
+            if (Stride > 1 && (rawFrame++ % Stride) != 0) { frame++; return; }
             var cam = Camera.main; if (!cam) return;
-            if (!rt) { rt = new RenderTexture(1920, 1080, 24); grab = new Texture2D(1920, 1080, TextureFormat.RGB24, false); }
+            if (!rt) { rt = new RenderTexture(W, H, 24); grab = new Texture2D(W, H, TextureFormat.RGB24, false); }
             foreach (var c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
                 if (c.isRootCanvas && (c.renderMode == RenderMode.ScreenSpaceOverlay || c.worldCamera != cam) && c.renderMode != RenderMode.WorldSpace)
                 {
@@ -150,7 +153,7 @@ namespace Tomorrow
             var prev = cam.targetTexture;
             cam.targetTexture = rt; cam.Render(); cam.targetTexture = prev;
             var old = RenderTexture.active; RenderTexture.active = rt;
-            grab.ReadPixels(new Rect(0, 0, 1920, 1080), 0, 0); grab.Apply(false);
+            grab.ReadPixels(new Rect(0, 0, W, H), 0, 0); grab.Apply(false);
             RenderTexture.active = old;
             File.WriteAllBytes(Path.Combine(clipDir, $"{frame:00000}.jpg"), grab.EncodeToJPG(90));
             frame++;

@@ -186,7 +186,7 @@ namespace Tomorrow.EditorTools
 
             // pickups hidden in the fog (puzzle 3) — only the lantern shows them
             var hidden = K.Group("Fog Hidden Parts", h);
-            var jar = K.Pickup("Pickup_FogJamJar", ItemId.JamJar, new Vector3(58f, 0.02f, -3.2f));
+            var jar = K.Pickup("Pickup_FogJamJar", ItemId.JamJar, new Vector3(59.4f, 0.02f, -2.2f));
             jar.transform.SetParent(hidden, true);
             K.Prim(PrimitiveType.Cylinder, "Jar", jar.transform, new Vector3(0, 0.06f, 0), new Vector3(0.1f, 0.06f, 0.1f), K.MatTransparent("Jar_Glass", new Color(0.85f, 0.95f, 1f, 0.5f)));
             var crateTop = Visuals.WorldBounds(GameObject.Find("Harbor").transform.Find("Crate").gameObject).max.y;

@@ -42,14 +42,18 @@ namespace Tomorrow
                 TakePhoto();
         }
 
+        protected override int ChapterNumber => 2;
+        protected override string ChapterTitle => "The Harbor";
+        protected override string NextChapterTitle => "Market Day";
+
         protected override IEnumerator Run()
         {
             yield return Opening();
-            yield return Puzzle1_LostAnchor();
-            yield return Puzzle2_TwoBoats();
-            yield return Puzzle3_Fog();
-            yield return Puzzle4_SeagullThief();
-            yield return Puzzle5_SundayPromise();
+            yield return Part(1, "The Lost Anchor", Puzzle1_LostAnchor());
+            yield return Part(2, "Two Boats, One Rope", Puzzle2_TwoBoats());
+            yield return Part(3, "Fog on the Water", Puzzle3_Fog());
+            yield return Part(4, "The Seagull Thief", Puzzle4_SeagullThief());
+            yield return Part(5, "The Sunday Promise", Puzzle5_SundayPromise());
             yield return Ending();
         }
 
@@ -580,7 +584,6 @@ namespace Tomorrow
             yield return Say(TOCK, "You give very short advice in the future.");
             yield return Say(PIP, "I'm busy, apparently.");
             yield return ui.Fade(1f, 2f);
-            ui.SetCaption("END OF CHAPTER 2");
             player.Freeze(false);
         }
     }
