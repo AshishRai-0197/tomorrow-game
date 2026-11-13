@@ -268,7 +268,7 @@ namespace Tomorrow
         }
 
         /// <summary>The Due Board: every open loan, earliest first, with what it takes to rebuild it.</summary>
-        public void ShowDebts(IEnumerable<Debt> debts)
+        public void ShowDebts(IEnumerable<Debt> debts, Inventory inv = null)
         {
             var open = new List<Debt>();
             foreach (var d in debts) if (!d.returned) open.Add(d);
@@ -277,10 +277,15 @@ namespace Tomorrow
             foreach (var d in open)
             {
                 var amount = d.amount > 1 ? $" ×{d.amount}" : "";
-                var due = d.dueHour < 99f ? $"  [due {HourLabel(d.dueHour)}]" : "";
+                var due = d.dueHour < 99f ? $"  [due {HourLabel(d.dueHour)}]" : "  [due sunset]";
                 var from = d.friend != null ? $"  ({d.friend}'s)" : "";
                 var recipe = Recipes.Describe(d.item);
-                sb.AppendLine($"○ {Items.Name(d.item)}{amount}{from}{due}" + (recipe.Length > 0 ? $"  —  build: {recipe}" : "  —  find one"));
+                string state;
+                if (inv != null && inv.Has(d.item, d.amount))
+                    state = d.built || recipe.Length == 0 ? "ready: put it in the Return Box" : "in your bag: use it first";
+                else
+                    state = recipe.Length > 0 ? $"build: {recipe}" : "find one";
+                sb.AppendLine($"○ {Items.Name(d.item)}{amount}{from}{due}  —  {state}");
             }
             foreach (var d in debts)
                 if (d.returned) sb.AppendLine($"✓ {Items.Name(d.item)}  (returned)");

@@ -137,5 +137,6 @@ namespace Tomorrow
         [Tooltip("Set for a friend's tomorrow (pink box): lateness costs a heart instead of interest.")]
         public string friend;
         [NonSerialized] public bool lateHandled;
+        [NonSerialized] public bool built;   // the copy in the bag was built at the workbench (not the borrowed one)
     }
 }

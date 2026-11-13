@@ -12,6 +12,7 @@ namespace Tomorrow
         [Tooltip("The clock won't pass this hour until the story allows it.")]
         public float cap = 18f;
         public bool running = true;
+        [System.NonSerialized] public int holds;   // > 0 while dialogue or a note is open: time stands still
 
         public Gradient sunColor;
         public Gradient skyColor;
@@ -43,7 +44,7 @@ namespace Tomorrow
 
         void Update()
         {
-            if (running && hour < cap)
+            if (running && holds == 0 && hour < cap)
                 hour = Mathf.Min(cap, hour + Time.deltaTime / Mathf.Max(1f, secondsPerHour));
             Apply();
         }

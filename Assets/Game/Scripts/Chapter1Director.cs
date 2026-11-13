@@ -40,6 +40,18 @@ namespace Tomorrow
 
         void RegisterWorkshopTools() => toolsOn = true;
 
+        protected override string PartHint(ItemId part, int missing)
+        {
+            switch (part)
+            {
+                case ItemId.Plank: return missing > 1 ? $"Take {missing} more planks from Oskar's old boat" : "Take 1 more plank from Oskar's old boat";
+                case ItemId.GlowFlower: return "Ask Nell for a glow-flower";
+                case ItemId.TinCan: return "Find a tin can (gold marker)";
+                case ItemId.CopperWire: return ovenFirst ? "Find copper wire (gold marker)" : "Find copper wire behind the post office";
+                default: return base.PartHint(part, missing);
+            }
+        }
+
         // ------------------------------------------------------------------ the chapter
         protected override int ChapterNumber => 1;
         protected override string ChapterTitle => "Borrow. Use. Build. Return.";
@@ -96,7 +108,7 @@ namespace Tomorrow
             yield return Wait(1.3f);
             yield return Note("A label on the box", "FROM: TOMORROW.\nRETURN BY: SUNSET.");
             cutscene = false;
-            clock.running = true;
+            // The day clock does not start yet: the first loan is a lesson, not a race.
             RegisterWorkshopTools();
         }
 
@@ -147,48 +159,46 @@ namespace Tomorrow
         // ---------------------------------------------------------- Puzzle 1
         IEnumerator Puzzle1_StuckDoor()
         {
-            Objective("Get out of the workshop");
-            bool tried = false;
-            On("Door", () => DoorStuck(() => tried = true));
-            while (!tried) yield return null;
-
+            // 1. open the box (the door is stuck — trying it just points back at the box)
             Objective("Open the Tomorrow Box");
+            On("Door", DoorStuck);
             bool opened = false;
             On("Box1", () => OpenBox1(() => opened = true));
             while (!opened) yield return null;
 
+            // 2. use what you borrowed
             Objective("Use the crowbar on the stuck door");
             bool open = false;
             On("Door", () => PryDoor(() => open = true));
             while (!open) yield return null;
 
-            Objective("Find an iron pipe and red tape, build a crowbar at the workbench, and drop it in the Return Box");
+            // 3. pay it back, one step at a time
             Pickup("Pickup_IronPipe"); Pickup("Pickup_RedTape");
-            while (!Repaid(ItemId.Crowbar)) yield return null;
-            AtLeastHour(8.5f);
+            yield return Say(TOCK, "Now we pay tomorrow back. An iron pipe and red tape make a crowbar. They're in here somewhere. Look for the gold markers.");
+            yield return RepaySteps(ItemId.Crowbar);
             yield return Say(TOCK, "See? Borrow. Use. Build. Return. Easy. Like breathing, but with more paperwork.");
+
+            // 4. lesson over: now the day starts
+            yield return Say(TOCK, "Lesson over. From now on the clock runs. Everything we borrow goes back before sunset.");
+            clock.running = true;
+            ui.ShowBanner("THE DAY BEGINS", "Return everything by sunset");
         }
 
-        IEnumerator DoorStuck(Action done)
+        IEnumerator DoorStuck()
         {
-            yield return Say(PIP, "The door won't open!");
-            yield return Say(TOCK, "Open the box. Tomorrow knows you need help.");
-            Off("Door");
-            done();
+            yield return Say(PIP, "The door won't open! It's stuck.");
+            yield return Say(TOCK, "Then open the box. Tomorrow knows you need help.");
         }
 
         IEnumerator OpenBox1(Action done)
         {
             Off("Box1");
             var box = Find("Box1");
-            ui.Toast("Inside: a crowbar.");
             Borrow(ItemId.Crowbar);
-            yield return Say(TOCK, "That's tomorrow's crowbar. You can use it today. But tomorrow, you must build it and send it back. Otherwise, tomorrow has no crowbar. And tomorrow gets very upset.");
-            yield return Say(PIP, "How upset?");
-            yield return Say(TOCK, "Grey. Very grey.");
-            yield return Say(PIP, "And if I'm late?");
-            yield return Say(TOCK, "Then tomorrow charges interest. One extra part. Like a library, but angrier.");
-            yield return Say(PIP, "Got it. Borrow fast. Return faster.");
+            yield return Say(TOCK, "That's tomorrow's crowbar. You can use it today. But then you must build one and send it back. Otherwise, tomorrow has no crowbar. And tomorrow gets very upset.");
+            yield return LoanCard(Find(ItemId.Crowbar));
+            yield return Say(PIP, "Use it, build one, give it back. Before sunset.");
+            yield return Say(TOCK, "And late costs one extra part. Like a library, but angrier.");
             if (box) yield return VanishBox(box);
             done();
         }
@@ -240,15 +250,8 @@ namespace Tomorrow
             On("Oskar", () => OskarPlanks(() => talked = true));
             while (!talked) yield return null;
 
-            Objective("Take 3 planks from Oskar's old boat. Find rope on the dock.");
             Pickups(true, "Pickup_Plank");
-            DropBox("Drop_Dock", "Box3", "Open the small Tomorrow Box");
-            bool rope = false;
-            On("Box3", () => OskarsRope(() => rope = true));
-            while (!rope) yield return null;
-
-            Objective("Build the bridge kit at the workbench and return it");
-            while (!Repaid(ItemId.BridgeKit)) yield return null;
+            yield return RepaySteps(ItemId.BridgeKit);
             AtLeastHour(10f);
         }
 
@@ -283,28 +286,17 @@ namespace Tomorrow
             Off("Oskar");
             yield return Say(OSKAR, "Planks? My old boat is full of them. Take them. She hasn't sailed since your grandma was young.");
             yield return Say(PIP, "You knew Grandma when she was young?");
-            yield return Say(OSKAR, "Everyone did. She was the only person who was ever on time. (He laughs.) Go on. Bring her back.");
-            done();
-        }
-
-        IEnumerator OskarsRope(Action done)
-        {
-            Off("Box3");
-            var box = Find("Box3");
-            yield return Note("A tag on the little box", "OSKAR'S ROPE —\nFROM HIS TOMORROW.");
-            yield return Say(OSKAR, "That's MY rope. From tomorrow? Then bring it back, lad. Tomorrow I'm fishing.");
-            yield return Say(TOCK, "Borrowing from a friend. Higher stakes. Lower interest. Friends are nice like that.");
+            yield return Say(OSKAR, "Everyone did. She was the only person who was ever on time. (He laughs.) Go on. And take my spare rope. It's yours, no need to bring it back.");
             inv.Add(ItemId.Rope);
             sfx.Pickup();
-            ui.Toast("+ Rope (Oskar's, from tomorrow)");
-            if (box) yield return VanishBox(box);
+            ui.Toast("+ Rope (a gift from Oskar)");
             done();
         }
 
         // ---------------------------------------------------------- Puzzle 3
         IEnumerator Puzzle3_FreezingGreenhouse()
         {
-            Objective("Nell is waving from her greenhouse");
+            Objective("Talk to Nell at her greenhouse");
             bool talked = false;
             On("Nell", () => NellCold(() => talked = true));
             while (!talked) yield return null;
@@ -319,13 +311,9 @@ namespace Tomorrow
             On("HeaterSpot", () => WarmGreenhouse(() => warm = true));
             while (!warm) yield return null;
 
-            Objective("Ask Nell for a glow-flower");
             On("Nell", NellFlower);
             Pickup("Pickup_TinCan");
-            while (!gotGlowFlower) yield return null;
-
-            Objective("Find a tin can, build a heater and return it — before noon for a surprise!");
-            while (!Repaid(ItemId.Heater)) yield return null;
+            yield return RepaySteps(ItemId.Heater, clock.hour < DayClock.Noon ? " (before noon for a surprise!)" : "");
 
             if (clock.hour < DayClock.Noon && !bonusGiven)
             {
@@ -388,7 +376,7 @@ namespace Tomorrow
         IEnumerator Puzzle4_ColdOven()
         {
             if (bakery) Visuals.Grey(bakery, 0f);
-            Objective("Something smells wrong at Bram's bakery. Nothing smells at all.");
+            Objective("Go and see Bram at the bakery");
             bool talked = false;
             On("Bram", () => BramNoBread(() => talked = true));
             while (!talked) yield return null;
@@ -398,7 +386,7 @@ namespace Tomorrow
             On("Box5", () => OpenBatteryBox(() => opened = true));
             while (!opened) yield return null;
 
-            Objective("Look in the Tomorrow Window at the workshop — then choose: the oven, or the clock tower light");
+            Objective("Put the battery in the oven or in the clock tower light");
             On("TomorrowWindow", TomorrowWindow);
             On("Oven", () => PlaceBattery(true));
             On("TowerLight", () => PlaceBattery(false));
@@ -409,7 +397,7 @@ namespace Tomorrow
 
             if (ovenFirst)
             {
-                Objective("Bram is baking! Go see him.");
+                Objective("Bram is baking! Talk to him");
                 bool loaf = false;
                 On("Bram", () => BramFirstLoaf(() => loaf = true));
                 while (!loaf) yield return null;
@@ -420,20 +408,17 @@ namespace Tomorrow
                 while (!traded) yield return null;
 
                 ExtraBuilds.Add(ItemId.Battery);
-                Objective("Build batteries from copper wire + jam jars: one for the clock tower, one to return");
                 On("TowerLight", LightTowerWithBuiltBattery);
             }
             else
             {
-                Objective("No bread to trade. Find copper wire the long way — behind the post office");
                 Pickup("Pickup_CopperWire");
                 Pickup("Pickup_JamJar");
             }
 
-            Objective(ovenFirst
-                ? "Build a battery (wire + jam jar) and return it. Light the clock tower too!"
-                : "Build a battery from copper wire and the jam jar in the bakery, then return it");
-            while (!Repaid(ItemId.Battery)) yield return null;
+            yield return RepaySteps(ItemId.Battery);
+            if (ovenFirst && inv.Has(ItemId.CopperWire) && inv.Has(ItemId.JamJar))
+                ui.Toast("Spare parts left: build a second battery for the clock tower light!", 3.5f);
             Off("TowerLight"); Off("TomorrowWindow");
             if (tomorrowWindow) Visuals.Glow(tomorrowWindow, Color.black, 0f);
         }

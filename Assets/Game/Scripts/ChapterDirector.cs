@@ -165,9 +165,68 @@ namespace Tomorrow
         protected void Off(string id) => handlers.Remove(id);
 
         // ------------------------------------------------------------------ dialogue
-        protected IEnumerator Say(string who, string line) => ui.Say(who, line);
-        protected IEnumerator Note(string title, string body, string voice = NARRATOR) => ui.Note(title, body, voice);
+        // The day clock stands still while someone is talking or a note is open: reading is free.
+        protected IEnumerator Say(string who, string line)
+        {
+            clock.holds++;
+            try { yield return ui.Say(who, line); } finally { clock.holds--; }
+        }
+
+        protected IEnumerator Note(string title, string body, string voice = NARRATOR)
+        {
+            clock.holds++;
+            try { yield return ui.Note(title, body, voice); } finally { clock.holds--; }
+        }
+
         protected void Objective(string s) => ui.SetObjective(s);
+
+        /// <summary>
+        /// The whole deal of a loan, on one card: what you took, what you give back, when, and what lateness costs.
+        /// </summary>
+        protected IEnumerator LoanCard(Debt d)
+        {
+            var recipe = Recipes.Describe(d.item);
+            var back = recipe.Length > 0 ? $"A {Items.Name(d.item).ToLower()} you build yourself\n      ({recipe})" : $"The same {Items.Name(d.item).ToLower()}";
+            var due = d.dueHour < 99f ? GameUI.HourLabel(d.dueHour) : "sunset";
+            var late = d.friend != null ? $"{d.friend} loses a heart" : "Tomorrow adds 1 extra part to what you owe";
+            yield return Note($"Loan from {d.fromWhom}",
+                $"YOU TOOK:   {Items.Name(d.item)}\nGIVE BACK:  {back}\nDUE BY:     {due}\nIF LATE:    {late}\n\nIt's on your Due Board (top right).");
+        }
+
+        /// <summary>
+        /// Wait until <paramref name="item"/> is returned, always naming the ONE next action:
+        /// find a part → build it at the workbench → put it in the Return Box.
+        /// </summary>
+        protected IEnumerator RepaySteps(ItemId item, string suffix = "")
+        {
+            string last = null;
+            while (!Repaid(item))
+            {
+                string step;
+                if (inv.Has(item)) step = $"Put the {Items.Name(item).ToLower()} in the Return Box";
+                else if (inv.CanBuild(item)) step = $"Build the {Items.Name(item).ToLower()} at the workbench";
+                else
+                {
+                    step = $"Build the {Items.Name(item).ToLower()}";
+                    if (Recipes.All.TryGetValue(item, out var parts))
+                        foreach (var p in parts)
+                        {
+                            int missing = p.Value - inv.Count(p.Key);
+                            if (missing <= 0) continue;
+                            step = PartHint(p.Key, missing);
+                            break;
+                        }
+                }
+                step += suffix;
+                if (step != last) { Objective(step); last = step; }
+                yield return null;
+            }
+        }
+
+        /// <summary>How to get a missing part. Chapters override this to name a person or a place.</summary>
+        protected virtual string PartHint(ItemId part, int missing) =>
+            missing > 1 ? $"Find {missing} more: {Items.Name(part).ToLower()} (gold markers)"
+                        : $"Find the {Items.Name(part).ToLower()} (gold marker)";
 
         // ------------------------------------------------------------------ world helpers
         protected Transform Spot(string name) => spots ? spots.Find(name) : null;
@@ -373,7 +432,8 @@ namespace Tomorrow
             inv.Add(d.item, d.amount);
             debts.Add(d);
             sfx.Pickup();
-            ui.Toast($"Borrowed from {d.fromWhom}: {Items.Name(d.item)}");
+            var due = d.dueHour < 99f ? GameUI.HourLabel(d.dueHour) : "sunset";
+            ui.Toast($"Borrowed from {d.fromWhom}: {Items.Name(d.item)}  ·  give one back by {due}", 3.5f);
             RefreshHud();
         }
 
@@ -399,7 +459,7 @@ namespace Tomorrow
         protected void RefreshHud()
         {
             ui.ShowInventory(inv);
-            ui.ShowDebts(debts);
+            ui.ShowDebts(debts, inv);
             ui.ShowHearts(hearts);
         }
 
@@ -484,6 +544,8 @@ namespace Tomorrow
                 if (inv.CanBuild(r))
                 {
                     inv.Build(r);
+                    var owedDebt = debts.Find(d => !d.returned && d.item == r && !d.built);
+                    if (owedDebt != null) owedDebt.built = true;
                     sfx.Build();
                     ui.Toast($"Built: {Items.Name(r)}!");
                     if (ExtraBuilds.Contains(r) && !owed) ExtraBuilds.Remove(r);
