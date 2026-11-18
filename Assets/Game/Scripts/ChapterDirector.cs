@@ -136,7 +136,7 @@ namespace Tomorrow
 
         /// <summary>
         /// True when no wall stands between Pip and the thing (so you can't pick things up through a wall).
-        /// Only tall, visible things count as walls: invisible blockers, crates and the thing itself don't.
+        /// Only tall, wide, visible things count as walls: invisible blockers, crates, posts, people and the thing itself don't.
         /// </summary>
         bool CanSee(Interactable it)
         {
@@ -145,17 +145,23 @@ namespace Tomorrow
             var dir = to - from;
             float len = dir.magnitude;
             if (len < 0.05f) return true;
-            foreach (var hit in Physics.RaycastAll(from, dir / len, len, ~0, QueryTriggerInteraction.Ignore))
+            int n = Physics.RaycastNonAlloc(from, dir / len, sightHits, len, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
+                var hit = sightHits[i];
                 var t = hit.collider.transform;
                 if (t.IsChildOf(it.transform) || t.IsChildOf(player.transform)) continue;
                 if (hit.distance > len - 0.4f) continue;                // right at the thing (e.g. the tower it belongs to)
-                var r = hit.collider.GetComponentInChildren<Renderer>();
-                if (!r || r.bounds.size.y < 1.2f) continue;          // low furniture or an invisible blocker
-                return false;                                        // a wall
+                if (!hit.collider.GetComponentInChildren<Renderer>()) continue;   // an invisible blocker
+                var b = hit.collider.bounds;
+                if (b.size.y < 1.2f) continue;                          // low furniture
+                if (Mathf.Max(b.size.x, b.size.z) < 1.5f) continue;     // a lamp post, a person, a tall prop: you can see round it
+                return false;                                           // a wall
             }
             return true;
         }
+
+        readonly RaycastHit[] sightHits = new RaycastHit[16];
 
         IEnumerator Use(Interactable it)
         {

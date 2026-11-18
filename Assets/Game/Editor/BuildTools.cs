@@ -60,10 +60,30 @@ namespace Tomorrow.EditorTools
                     var col = src.GetPixelBilinear(u, v);
                     // soften the circle's edge by one pixel so it isn't jagged
                     if (circle) col.a *= Mathf.Clamp01(r - Mathf.Sqrt(dx * dx + dy * dy));
-                    px[y * size + x] = Color.Lerp(fill, col, col.a);
+                    px[y * size + x] = Over(col, fill);
                 }
             dst.SetPixels(px); dst.Apply();
             return dst;
+        }
+
+        /// <summary>Lay <paramref name="top"/> over <paramref name="under"/>, straight (not pre-multiplied) alpha in and out.</summary>
+        static Color Over(Color top, Color under)
+        {
+            float a = top.a + under.a * (1 - top.a);
+            if (a <= 0f) return Color.clear;
+            var rgb = ((Vector4)top * top.a + (Vector4)under * under.a * (1 - top.a)) / a;
+            return new Color(rgb.x, rgb.y, rgb.z, a);
+        }
+
+        /// <summary>The icon's outer colour, from the first solid pixel in from the top-left corner (fully opaque).</summary>
+        static Color OuterColour(Texture2D src)
+        {
+            for (int i = 4; i < Mathf.Min(src.width, src.height) / 2; i++)
+            {
+                var c = src.GetPixel(i, i);
+                if (c.a > 0.99f) return new Color(c.r, c.g, c.b, 1f);
+            }
+            return new Color(0.96f, 0.78f, 0.48f);   // same orange as the splash screen
         }
 
         static Texture2D SaveIcon(Texture2D tex, string name)
@@ -84,7 +104,7 @@ namespace Tomorrow.EditorTools
         public static void MakeIcons()
         {
             var src = LoadIconPixels();
-            var orange = src.GetPixel(4, 4);                                         // the icon's outer colour
+            var orange = OuterColour(src);
             // The phone only shows the middle two thirds of the layer. Shrink the icon to 78% so that window
             // shows the clock and the box; the space around it is filled with the icon's own orange.
             var bg = SaveIcon(Compose(src, 432, 0.78f, orange, false), "Adaptive_Background");
@@ -107,18 +127,22 @@ namespace Tomorrow.EditorTools
         {
             var src = LoadIconPixels();
             var td = Path.Combine(outDir, "TemplateData");
+            if (!Directory.Exists(td)) { Debug.LogWarning("[Tomorrow] Web template has no TemplateData folder: Unity's icons left as they are"); return; }
             File.WriteAllBytes(Path.Combine(td, "favicon.png"), Compose(src, 64, 1f, Color.clear, true).EncodeToPNG());
             File.WriteAllBytes(Path.Combine(td, "apple-touch-icon.png"), Compose(src, 180, 1f, Color.white, false).EncodeToPNG());
             File.WriteAllBytes(Path.Combine(td, "unity-logo-dark.png"), Compose(src, 154, 1f, Color.clear, true).EncodeToPNG());
             File.WriteAllBytes(Path.Combine(td, "unity-logo-light.png"), Compose(src, 154, 1f, Color.clear, true).EncodeToPNG());
             File.WriteAllBytes(Path.Combine(td, "unity-logo-title-footer.png"), Compose(src, 38, 1f, Color.clear, true).EncodeToPNG());
             var index = Path.Combine(outDir, "index.html");
-            var html = File.ReadAllText(index)
-                .Replace("<title>Unity Web Player | ", "<title>")
-                .Replace("<link rel=\"shortcut icon\" href=\"TemplateData/favicon.ico\">",
-                         "<link rel=\"icon\" type=\"image/png\" href=\"TemplateData/favicon.png\">\n    <link rel=\"apple-touch-icon\" href=\"TemplateData/apple-touch-icon.png\">");
+            const string oldLink = "<link rel=\"shortcut icon\" href=\"TemplateData/favicon.ico\">";
+            var html = File.ReadAllText(index).Replace("<title>Unity Web Player | ", "<title>");
+            if (html.Contains(oldLink))
+            {
+                html = html.Replace(oldLink, "<link rel=\"icon\" type=\"image/png\" href=\"TemplateData/favicon.png\">\n    <link rel=\"apple-touch-icon\" href=\"TemplateData/apple-touch-icon.png\">");
+                File.Delete(Path.Combine(td, "favicon.ico"));   // only once nothing points at it
+            }
+            else Debug.LogWarning("[Tomorrow] index.html favicon line not found: kept Unity's favicon.ico");
             File.WriteAllText(index, html);
-            File.Delete(Path.Combine(td, "favicon.ico"));
         }
 
         [MenuItem("Tomorrow/Build/Web (WebGL)")]

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Tomorrow
 {
@@ -19,6 +20,7 @@ namespace Tomorrow
         static readonly List<Cutaway> all = new List<Cutaway>();
 
         readonly List<Renderer> rends = new List<Renderer>();
+        readonly List<ShadowCastingMode> shadows = new List<ShadowCastingMode>();   // each renderer's own setting, put back on show
         Bounds bounds;
         bool hidden, ready;
         float showAt;                       // keep hidden until this time (stops flicker at the edge)
@@ -48,14 +50,24 @@ namespace Tomorrow
                     rends.Add(r);
                 }
             }
+            foreach (var r in rends) shadows.Add(r.shadowCastingMode);
             ready = true;
         }
 
+        /// <summary>Hidden parts still cast their shadows, so the room doesn't fill with sunlight when a wall steps aside.</summary>
         void SetHidden(bool h)
         {
             if (hidden == h) return;
             hidden = h;
-            foreach (var r in rends) if (r) r.enabled = !h;
+            for (int i = 0; i < rends.Count; i++)
+            {
+                var r = rends[i];
+                if (!r) continue;
+                var own = i < shadows.Count ? shadows[i] : ShadowCastingMode.On;
+                if (own == ShadowCastingMode.Off) { r.enabled = !h; continue; }
+                r.enabled = true;
+                r.shadowCastingMode = h ? ShadowCastingMode.ShadowsOnly : own;
+            }
         }
 
         /// <summary>Hide every part that blocks the view from <paramref name="cam"/> to Pip at <paramref name="pip"/>.</summary>
