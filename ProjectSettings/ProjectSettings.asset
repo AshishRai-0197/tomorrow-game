@@ -410,32 +410,44 @@ PlayerSettings:
       m_SubKind: App Store
   - m_BuildTarget: Android
     m_Icons:
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 324
       m_Height: 324
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 216
       m_Height: 216
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 162
       m_Height: 162
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 108
       m_Height: 108
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: d7581bc888a574daa8c6607a490283e6, type: 3}
+      - {fileID: 2800000, guid: 5c0784f7c1e014b2cad0fbd73f32a719, type: 3}
       m_Width: 81
       m_Height: 81
       m_Kind: 2
@@ -805,7 +817,7 @@ PlayerSettings:
   webEnableSubmoduleStrippingCompatibility: 0
   webProgressiveAssetLoading: 0
   scriptingDefineSymbols:
-    Android: SENTIS_ANALYTICS_ENABLED
+    Android: SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:

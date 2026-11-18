@@ -122,7 +122,7 @@ namespace Tomorrow
                     if (!it.available || !it.isActiveAndEnabled) continue;
                     if (it.pickupItem == ItemId.None && !HasHandler(it.id)) continue;
                     float d = Vector3.Distance(p, it.Point);
-                    if (d < it.range && d < best) { best = d; focused = it; }
+                    if (d < it.range && d < best && CanSee(it)) { best = d; focused = it; }
                 }
             }
             ui.SetPrompt(focused ? focused.Prompt : null);
@@ -132,6 +132,29 @@ namespace Tomorrow
             if (use && focused) StartCoroutine(Use(focused));
 
             CheckDueTimes();
+        }
+
+        /// <summary>
+        /// True when no wall stands between Pip and the thing (so you can't pick things up through a wall).
+        /// Only tall, visible things count as walls: invisible blockers, crates and the thing itself don't.
+        /// </summary>
+        bool CanSee(Interactable it)
+        {
+            var from = player.transform.position + Vector3.up * 0.6f;
+            var to = it.Point; to.y = from.y;
+            var dir = to - from;
+            float len = dir.magnitude;
+            if (len < 0.05f) return true;
+            foreach (var hit in Physics.RaycastAll(from, dir / len, len, ~0, QueryTriggerInteraction.Ignore))
+            {
+                var t = hit.collider.transform;
+                if (t.IsChildOf(it.transform) || t.IsChildOf(player.transform)) continue;
+                if (hit.distance > len - 0.4f) continue;                // right at the thing (e.g. the tower it belongs to)
+                var r = hit.collider.GetComponentInChildren<Renderer>();
+                if (!r || r.bounds.size.y < 1.2f) continue;          // low furniture or an invisible blocker
+                return false;                                        // a wall
+            }
+            return true;
         }
 
         IEnumerator Use(Interactable it)

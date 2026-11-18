@@ -24,6 +24,7 @@ namespace Tomorrow
             {
                 transform.position = Vector3.Lerp(transform.position, overridePose.position, Time.deltaTime * 3f);
                 transform.rotation = Quaternion.Slerp(transform.rotation, overridePose.rotation, Time.deltaTime * 3f);
+                if (target) Cutaway.UpdateAll(transform.position, target.position);
                 return;
             }
             if (!target) return;
@@ -42,6 +43,9 @@ namespace Tomorrow
             var want = focus - rot * Vector3.forward * distance;
             transform.position = Vector3.Lerp(transform.position, want, 1f - Mathf.Exp(-smooth * Time.deltaTime));
             transform.rotation = Quaternion.Slerp(transform.rotation, rot, 1f - Mathf.Exp(-smooth * Time.deltaTime));
+
+            // walls and roofs between the camera and Pip step aside
+            Cutaway.UpdateAll(transform.position, target.position);
         }
 
         public void SnapNow()
