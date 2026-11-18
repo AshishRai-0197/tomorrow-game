@@ -273,6 +273,7 @@ namespace Tomorrow
             for (float a = 0; a < 0.7f; a += Time.deltaTime) { t.localScale = new Vector3(s.x, s.y, s.z * (a / 0.7f)); yield return null; }
             t.localScale = s;
             if (riverBlocker) riverBlocker.SetActive(false);
+            if (brokenBridge) brokenBridge.SetActive(false);   // the new bridge replaces it (as in Chapter 3)
             ui.Toast("A quick bridge! It wobbles, but it holds.");
             yield return Wait(0.6f);
             done();

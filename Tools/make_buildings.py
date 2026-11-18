@@ -400,18 +400,23 @@ def park_bench():
     finish("Park_Bench")
 
 
+WS_E, WS_YB = 2.2, 3.15                # workshop eave (wall top) height and back wall face, shared by roof and frame
+
+
 def workshop_roof():
-    """Gabled roof, gable ends, back corner posts and a chimney for Grandma's workshop (walls: x ±3.7, y -3.1..3.15).
-    Origin = centre of the workshop floor. The ridge runs along X. Front (-Y) is hidden behind Workshop_Front."""
-    E, R, T = 2.2, 3.2, 0.12            # eave (wall top), ridge height, roof thickness
-    yf, yb, over = -3.1, 3.15, 0.32     # front / back wall faces, eave overhang
+    """Gabled roof, gable ends and a chimney for Grandma's workshop (walls: x ±3.7, y -3.1..3.15).
+    Origin = centre of the workshop floor. The ridge runs along X. Front (-Y) is hidden behind Workshop_Front.
+    Only things up at roof height belong here: the whole model hides while Pip is inside (Cutaway)."""
+    E, R, T = WS_E, 3.2, 0.12           # eave (wall top), ridge height, roof thickness
+    yf, yb, over = -3.1, WS_YB, 0.32    # front / back wall faces, eave overhang
     ridge_y = (yf + yb) / 2
     def slope_z(y):                     # underside of the roof at y
         half = (yb - yf) / 2
         return E + (R - E) * (1 - abs(y - ridge_y) / half)
+    eave_z = E - (R - E) * over / ((yb - yf) / 2)   # the roof line carried on past the wall to the overhang's edge
     X = 3.98
     for side, ye in (("N", yf - over), ("S", yb + over)):
-        ze = slope_z(ye) if False else E - (R - E) * over / ((yb - yf) / 2)
+        ze = eave_z
         prof = [(ye, ze), (ridge_y, R), (ridge_y, R + T), (ye, ze + T)]
         if side == "S": prof = prof[::-1]
         prism_x("Roof" + side, prof, -X, X, "Prop_RoofRed")
@@ -433,7 +438,7 @@ def workshop_roof():
         prism_x("Gable", [(yf, E), (yb, E), (ridge_y + 0.08, R - 0.02), (ridge_y - 0.08, R - 0.02)], x0, x1, "Prop_Plaster")
         # timber barge boards along the gable edges
         for ye in (yf - over, yb + over):
-            ze = E - (R - E) * over / ((yb - yf) / 2)
+            ze = eave_z
             p = [(ye, ze - 0.02), (ridge_y, R - 0.02), (ridge_y, R + T + 0.04), (ye, ze + T + 0.04)]
             if ye > 0: p = p[::-1]
             xa, xb = sorted((sx * 3.98, sx * 4.06))
@@ -441,10 +446,6 @@ def workshop_roof():
         # round attic vent in the gable
         lathe("Vent", [(0.2, 0), (0.2, 0.05)], "Prop_Timber", m=2, at=(sx * 3.73, ridge_y, 2.62), rot=(0, 90, 0), smooth=False)
         lathe("VentGlass", [(0.14, 0), (0.14, 0.06)], "Prop_WindowGlow", m=2, at=(sx * 3.73, ridge_y, 2.62), rot=(0, 90, 0), smooth=False)
-        # timber corner posts at the back
-        box("Post", sx * 3.72 - 0.1, sx * 3.72 + 0.1, yb - 0.08, yb + 0.12, 0, E, "Prop_Timber")
-    box("Plinth", -3.8, 3.8, yb - 0.02, yb + 0.1, 0, 0.32, "Prop_StoneDark")
-    box("Beam", -3.75, 3.75, yb - 0.02, yb + 0.1, E - 0.12, E, "Prop_Timber")
     # chimney on the back slope
     cy0, cy1 = 1.2, 1.7
     box("Chimney", 1.8, 2.3, cy0, cy1, slope_z(cy1) - 0.1, 3.85, "Prop_StoneDark")
@@ -453,10 +454,21 @@ def workshop_roof():
     finish("Workshop_Roof")
 
 
+def workshop_frame():
+    """Back wall's stone plinth, timber corner posts and eave beam for Grandma's workshop. Kept out of
+    Workshop_Roof so they stay put when the roof hides. Same origin as Workshop_Roof."""
+    E, yb = WS_E, WS_YB
+    for sx in (-1, 1):
+        box("Post", sx * 3.72 - 0.1, sx * 3.72 + 0.1, yb - 0.08, yb + 0.12, 0, E, "Prop_Timber")
+    box("Plinth", -3.8, 3.8, yb - 0.02, yb + 0.1, 0, 0.32, "Prop_StoneDark")
+    box("Beam", -3.75, 3.75, yb - 0.02, yb + 0.1, E - 0.12, E, "Prop_Timber")
+    finish("Workshop_Frame")
+
+
 bpy.ops.wm.read_factory_settings(use_empty=True)
 import sys
 ONLY = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-for f in (workshop_front, workshop_roof, clock_tower, striped_awning, market_stall, fountain, park_bench):
+for f in (workshop_front, workshop_roof, workshop_frame, clock_tower, striped_awning, market_stall, fountain, park_bench):
     if ONLY and f.__name__ not in ONLY: continue
     f()
 

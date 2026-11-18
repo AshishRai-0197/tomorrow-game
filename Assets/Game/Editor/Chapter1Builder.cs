@@ -156,6 +156,7 @@ namespace Tomorrow.EditorTools
                 Spawn(PropDir + "Window.glb", ws, new Vector3(wx, 0.8f, -3.15f), 180);   // seen from outside
             }
             Spawn(PropDir + "Workshop_Roof.glb", ws, Vector3.zero, 0);                    // gabled roof, gables, chimney
+            Spawn(PropDir + "Workshop_Frame.glb", ws, Vector3.zero, 0);                   // back plinth, corner posts, beam (stay when the roof hides)
             Box("Skirting", ws, new Vector3(0, 0.06f, 2.88f), new Vector3(7f, 0.12f, 0.04f), trim, false);
 
             var bench = Spawn(PropDir + "Workbench.glb", ws, new Vector3(-2f, 0, 2.35f), 180);
@@ -608,7 +609,8 @@ namespace Tomorrow.EditorTools
             if (ws)
                 foreach (Transform c in ws.transform)
                 {
-                    if (c.name.StartsWith("Wall_")) c.gameObject.AddComponent<Cutaway>();
+                    // walls are plain boxes; "Wall_Shelf_Clocks" etc. are models that hang on a wall and hide with it
+                    if (c.name.StartsWith("Wall_") && !PrefabUtility.IsAnyPrefabInstanceRoot(c.gameObject)) c.gameObject.AddComponent<Cutaway>();
                     else if (c.name == "Workshop_Roof")
                     {
                         var roof = c.gameObject.AddComponent<Cutaway>();
@@ -623,7 +625,9 @@ namespace Tomorrow.EditorTools
         /// <summary>
         /// Everything solid that stands on the ground gets a collision box, so Pip and Tock walk round it
         /// instead of through it. Skips: things already solid, things to pick up or use, wall decorations
-        /// and hanging things (they start above 0.3 m), big ground shapes, and doors.
+        /// and hanging things (they start above 0.3 m), big ground shapes, doors and bridges (you walk on those).
+        /// Plain groups (empty objects made by Group()) are opened up so each thing inside gets its own box;
+        /// a group that already has colliders inside is left as it was built.
         /// </summary>
         static void AutoColliders()
         {
@@ -632,26 +636,40 @@ namespace Tomorrow.EditorTools
             int added = 0;
             foreach (Transform grp in world.transform)
                 foreach (Transform c in grp)
-                {
-                    var go = c.gameObject;
-                    if (go.GetComponentInChildren<Collider>(true) || go.GetComponentInParent<Interactable>() || go.GetComponentInChildren<Interactable>(true)) continue;
-                    if (c.name.Contains("Door") || c.name.Contains("Water") || c.name.Contains("Fog")) continue;
-                    if (c.name.Contains("Awning") || c.name.Contains("Stall") || c.name.Contains("Greenhouse")) continue;   // open underneath
-                    var rs = go.GetComponentsInChildren<Renderer>(true);
-                    if (rs.Length == 0) continue;
-                    var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
-                    if (b.size.y < 0.2f || b.min.y > 0.3f) continue;          // flat decals; wall-mounted or hanging things
-                    if (b.size.x > 4f || b.size.z > 4f) continue;              // hills, roads, building fronts
-                    Solid(go);
-                    var col = go.GetComponent<BoxCollider>();
-                    // low things (flower beds) get a taller box so nobody steps up onto them
-                    var s = col.size; var lossy = go.transform.lossyScale.y;
-                    float minH = 0.7f / Mathf.Max(0.0001f, lossy);
-                    if (s.y < minH) { col.center += Vector3.up * (minH - s.y) / 2; col.size = new Vector3(s.x, minH, s.z); }
-                    added++;
-                }
+                    added += AutoCollide(c);
             Debug.Log($"[Tomorrow] AutoColliders: {added} added");
         }
+
+        static int AutoCollide(Transform c)
+        {
+            var go = c.gameObject;
+            if (go.GetComponentInChildren<Collider>(true) || go.GetComponentInParent<Interactable>() || go.GetComponentInChildren<Interactable>(true)) return 0;
+            if (c.parent && c.parent.GetComponentInParent<Collider>()) return 0;      // part of something already solid (a character's model)
+            if (c.name.Contains("Door") || c.name.Contains("Water") || c.name.Contains("Fog") || c.name.Contains("Bridge")) return 0;
+            if (c.name.Contains("Awning") || c.name.Contains("Stall") || c.name.Contains("Greenhouse")) return 0;   // open underneath
+            if (IsGroup(c))
+            {
+                int n = 0;
+                foreach (Transform k in c) n += AutoCollide(k);
+                return n;
+            }
+            var rs = go.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return 0;
+            var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+            if (b.size.y < 0.2f || b.min.y > 0.3f) return 0;          // flat decals; wall-mounted or hanging things
+            if (b.size.x > 4f || b.size.z > 4f) return 0;              // hills, roads, building fronts
+            Solid(go);
+            var col = go.GetComponent<BoxCollider>();
+            // low things (flower beds) get a taller box so nobody steps up onto them
+            var s = col.size; var lossy = go.transform.lossyScale.y;
+            float minH = 0.7f / Mathf.Max(0.0001f, lossy);
+            if (s.y < minH) { col.center += Vector3.up * (minH - s.y) / 2; col.size = new Vector3(s.x, minH, s.z); }
+            return 1;
+        }
+
+        /// <summary>An empty object holding other things (made by Group()), not a model or a primitive.</summary>
+        static bool IsGroup(Transform t) =>
+            t.childCount > 0 && t.GetComponents<Component>().Length == 1 && !PrefabUtility.IsAnyPrefabInstanceRoot(t.gameObject);
 
         public static void Solid(GameObject go, float shrink = 0.9f)
         {
