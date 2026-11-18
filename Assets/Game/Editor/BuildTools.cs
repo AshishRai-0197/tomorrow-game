@@ -23,7 +23,8 @@ namespace Tomorrow.EditorTools
             PlayerSettings.productName = "Tomorrow";
             PlayerSettings.bundleVersion = "0.3.0";
             PlayerSettings.runInBackground = false;
-            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Game/Art/Icon.png");
+            // one picture for every platform: the watch character from Art/Icons
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AppIconPath) ?? AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
             if (icon) PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
             PlayerSettings.SplashScreen.backgroundColor = new Color(0.96f, 0.78f, 0.48f);
         }
@@ -31,12 +32,13 @@ namespace Tomorrow.EditorTools
         // ------------------------------------------------------------------ icons
         const string IconPath = "Assets/Game/Art/Icon.png";
         const string IconDir = "Assets/Game/Art/Icons";
+        const string AppIconPath = IconDir + "/play_store_512.png";        // the app icon on every platform (512×512)
 
-        /// <summary>Read Icon.png straight from disk (no need to make the asset readable).</summary>
-        static Texture2D LoadIconPixels()
+        /// <summary>Read a picture straight from disk (no need to make the asset readable). Default: Icon.png.</summary>
+        static Texture2D LoadIconPixels(string path = IconPath)
         {
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            tex.LoadImage(File.ReadAllBytes(Path.Combine(Root, IconPath)));
+            tex.LoadImage(File.ReadAllBytes(Path.Combine(Root, path)));
             return tex;
         }
 
@@ -103,11 +105,12 @@ namespace Tomorrow.EditorTools
         [MenuItem("Tomorrow/Build/Make App Icons")]
         public static void MakeIcons()
         {
-            var src = LoadIconPixels();
+            var src = LoadIconPixels(AppIconPath);
             var orange = OuterColour(src);
-            // The phone only shows the middle two thirds of the layer. Shrink the icon to 78% so that window
-            // shows the clock and the box; the space around it is filled with the icon's own orange.
-            var bg = SaveIcon(Compose(src, 432, 0.78f, orange, false), "Adaptive_Background");
+            // The phone only shows the middle 66 of 108 units of a layer (and may round it into a circle).
+            // At 76% the window shows the middle 80% of the picture: the whole watch, hands, feet and ring.
+            // The hidden edge outside the picture is filled with its own outer colour.
+            var bg = SaveIcon(Compose(src, 432, 0.76f, orange, false), "Android_Layer_Background");
             var fg = SaveIcon(Compose(src, 432, 0f, Color.clear, false), "Adaptive_Foreground");   // empty layer
 
             var android = UnityEditor.Build.NamedBuildTarget.Android;
@@ -122,10 +125,10 @@ namespace Tomorrow.EditorTools
             Debug.Log("[Tomorrow] App icon set (adaptive: background + foreground)");
         }
 
-        /// <summary>Swap Unity's favicon and loading logo in a finished web build for the game icon.</summary>
+        /// <summary>Swap Unity's favicon and loading logo in a finished web build for the app icon (Art/Icons).</summary>
         static void BrandWebBuild(string outDir)
         {
-            var src = LoadIconPixels();
+            var src = LoadIconPixels(File.Exists(Path.Combine(Root, AppIconPath)) ? AppIconPath : IconPath);
             var td = Path.Combine(outDir, "TemplateData");
             if (!Directory.Exists(td)) { Debug.LogWarning("[Tomorrow] Web template has no TemplateData folder: Unity's icons left as they are"); return; }
             File.WriteAllBytes(Path.Combine(td, "favicon.png"), Compose(src, 64, 1f, Color.clear, true).EncodeToPNG());
