@@ -126,6 +126,8 @@ namespace Tomorrow.EditorTools
 
         public static void SaveChapterScene(UnityEngine.SceneManagement.Scene scene, string path)
         {
+            SetupCutaways();
+            AutoColliders();
             EditorSceneManager.SaveScene(scene, path);
             AssetDatabase.SaveAssets();
             Debug.Log("[Tomorrow] Scene built: " + path);
@@ -147,7 +149,13 @@ namespace Tomorrow.EditorTools
             Box("Wall_N_Top", ws, new Vector3(0, h - 0.25f, 3f), new Vector3(1.0f, 0.5f, 0.2f), wall, false);
             Box("Wall_W", ws, new Vector3(-3.6f, h / 2, 0), new Vector3(0.2f, h, 6.2f), wall, true);
             Box("Wall_E", ws, new Vector3(3.6f, h / 2, 0), new Vector3(0.2f, h, 6.2f), wall, true);
-            Box("Wall_S_Low", ws, new Vector3(0, 0.2f, -3.05f), new Vector3(7.4f, 0.4f, 0.2f), trim, true); // cut-away wall
+            Box("Wall_S", ws, new Vector3(0, h / 2, -3.05f), new Vector3(7.4f, h, 0.2f), wall, true);   // full back wall (hides for the camera)
+            foreach (var wx in new[] { -1.4f, 1.4f })
+            {
+                Spawn(PropDir + "Window.glb", ws, new Vector3(wx, 0.8f, -2.95f), 0);     // seen from inside
+                Spawn(PropDir + "Window.glb", ws, new Vector3(wx, 0.8f, -3.15f), 180);   // seen from outside
+            }
+            Spawn(PropDir + "Workshop_Roof.glb", ws, Vector3.zero, 0);                    // gabled roof, gables, chimney
             Box("Skirting", ws, new Vector3(0, 0.06f, 2.88f), new Vector3(7f, 0.12f, 0.04f), trim, false);
 
             var bench = Spawn(PropDir + "Workbench.glb", ws, new Vector3(-2f, 0, 2.35f), 180);
@@ -591,6 +599,58 @@ namespace Tomorrow.EditorTools
             var b = Visuals.WorldBounds(go);
             if (b.size.y < 0.001f) return;
             go.transform.localScale *= height / b.size.y;
+        }
+
+        /// <summary>The workshop's walls and roof step aside for the camera (see Cutaway.cs).</summary>
+        static void SetupCutaways()
+        {
+            var ws = GameObject.Find("World/Workshop");
+            if (ws)
+                foreach (Transform c in ws.transform)
+                {
+                    if (c.name.StartsWith("Wall_")) c.gameObject.AddComponent<Cutaway>();
+                    else if (c.name == "Workshop_Roof")
+                    {
+                        var roof = c.gameObject.AddComponent<Cutaway>();
+                        roof.hideWhenInside = true;
+                        roof.interior = new Bounds(ws.transform.position + new Vector3(0, 1.4f, -0.05f), new Vector3(7.2f, 2.8f, 6.0f));
+                    }
+                }
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                if (t.name == "Workshop_Front" && !t.GetComponent<Cutaway>()) t.gameObject.AddComponent<Cutaway>();
+        }
+
+        /// <summary>
+        /// Everything solid that stands on the ground gets a collision box, so Pip and Tock walk round it
+        /// instead of through it. Skips: things already solid, things to pick up or use, wall decorations
+        /// and hanging things (they start above 0.3 m), big ground shapes, and doors.
+        /// </summary>
+        static void AutoColliders()
+        {
+            var world = GameObject.Find("World");
+            if (!world) return;
+            int added = 0;
+            foreach (Transform grp in world.transform)
+                foreach (Transform c in grp)
+                {
+                    var go = c.gameObject;
+                    if (go.GetComponentInChildren<Collider>(true) || go.GetComponentInParent<Interactable>() || go.GetComponentInChildren<Interactable>(true)) continue;
+                    if (c.name.Contains("Door") || c.name.Contains("Water") || c.name.Contains("Fog")) continue;
+                    if (c.name.Contains("Awning") || c.name.Contains("Stall") || c.name.Contains("Greenhouse")) continue;   // open underneath
+                    var rs = go.GetComponentsInChildren<Renderer>(true);
+                    if (rs.Length == 0) continue;
+                    var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds);
+                    if (b.size.y < 0.2f || b.min.y > 0.3f) continue;          // flat decals; wall-mounted or hanging things
+                    if (b.size.x > 4f || b.size.z > 4f) continue;              // hills, roads, building fronts
+                    Solid(go);
+                    var col = go.GetComponent<BoxCollider>();
+                    // low things (flower beds) get a taller box so nobody steps up onto them
+                    var s = col.size; var lossy = go.transform.lossyScale.y;
+                    float minH = 0.7f / Mathf.Max(0.0001f, lossy);
+                    if (s.y < minH) { col.center += Vector3.up * (minH - s.y) / 2; col.size = new Vector3(s.x, minH, s.z); }
+                    added++;
+                }
+            Debug.Log($"[Tomorrow] AutoColliders: {added} added");
         }
 
         public static void Solid(GameObject go, float shrink = 0.9f)

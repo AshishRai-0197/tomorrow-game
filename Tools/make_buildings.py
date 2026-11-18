@@ -36,7 +36,7 @@ PALETTE = {
     "Prop_AwningPink": ("#EF8FB0", 0.85, 0), "Prop_Iron": ("#2E2B2A", 0.5, 0.7), "Prop_Water": ("#69B6E0", 0.1, 0),
     "Prop_Leaf": ("#6DA24B", 0.8, 0), "Prop_FlowerPink": ("#F08CB0", 0.7, 0), "Prop_FlowerYellow": ("#F6CF4C", 0.7, 0),
     "Prop_Apple": ("#D6352B", 0.5, 0), "Prop_Orange": ("#F09A2E", 0.6, 0), "Prop_Pear": ("#B5C94A", 0.6, 0),
-    "Prop_Door": ("#7A3F2A", 0.7, 0),
+    "Prop_Door": ("#7A3F2A", 0.7, 0), "Prop_RoofDark": ("#8E3F2E", 0.85, 0),
 }
 _mats = {}
 
@@ -88,6 +88,18 @@ def box(name, x0, x1, y0, y1, z0, z1, material, rot=None, pivot=None):
              @ Matrix.Rotation(math.radians(rot[0]), 4, "X"))
         m = Matrix.Translation(pv) @ R @ Matrix.Translation(-pv) @ m
     bmesh.ops.transform(bm, matrix=m, verts=bm.verts)
+    return new_obj(name, bm, material)
+
+
+def prism_x(name, profile, x0, x1, material):
+    """A 4-sided profile [(y, z) x4, counter-clockwise] extruded along X from x0 to x1: 6 quads."""
+    bm = bmesh.new()
+    a = [bm.verts.new((x0, y, z)) for y, z in profile]
+    b = [bm.verts.new((x1, y, z)) for y, z in profile]
+    bm.faces.new(a[::-1]); bm.faces.new(b)
+    for k in range(4):
+        bm.faces.new((a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return new_obj(name, bm, material)
 
 
@@ -388,8 +400,64 @@ def park_bench():
     finish("Park_Bench")
 
 
+def workshop_roof():
+    """Gabled roof, gable ends, back corner posts and a chimney for Grandma's workshop (walls: x ±3.7, y -3.1..3.15).
+    Origin = centre of the workshop floor. The ridge runs along X. Front (-Y) is hidden behind Workshop_Front."""
+    E, R, T = 2.2, 3.2, 0.12            # eave (wall top), ridge height, roof thickness
+    yf, yb, over = -3.1, 3.15, 0.32     # front / back wall faces, eave overhang
+    ridge_y = (yf + yb) / 2
+    def slope_z(y):                     # underside of the roof at y
+        half = (yb - yf) / 2
+        return E + (R - E) * (1 - abs(y - ridge_y) / half)
+    X = 3.98
+    for side, ye in (("N", yf - over), ("S", yb + over)):
+        ze = slope_z(ye) if False else E - (R - E) * over / ((yb - yf) / 2)
+        prof = [(ye, ze), (ridge_y, R), (ridge_y, R + T), (ye, ze + T)]
+        if side == "S": prof = prof[::-1]
+        prism_x("Roof" + side, prof, -X, X, "Prop_RoofRed")
+        # tile rows: thin darker strips running along the slope
+        for k in range(1, 6):
+            t = k / 6.0
+            y = ye + (ridge_y - ye) * t; z = ze + (R - ze) * t + T
+            dy = (ridge_y - ye) * 0.035; dz = (R - ze) * 0.035
+            sp = [(y - dy, z - dz), (y + dy, z + dz), (y + dy, z + dz + 0.035), (y - dy, z - dz + 0.035)]
+            if side == "S": sp = sp[::-1]
+            prism_x("TileRow", sp, -X + 0.02, X - 0.02, "Prop_RoofDark")
+        # fascia board under the eave
+        y0, y1 = sorted((ye, ye + (0.06 if side == "N" else -0.06)))
+        box("Fascia", -X, X, y0, y1, ze - 0.16, ze + 0.02, "Prop_Timber")
+    box("Ridge", -X - 0.04, X + 0.04, ridge_y - 0.13, ridge_y + 0.13, R + T - 0.02, R + T + 0.12, "Prop_RoofDark")
+    # gable ends (plaster), a near-triangle quad so the model stays all-quad
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * 3.58, sx * 3.72))
+        prism_x("Gable", [(yf, E), (yb, E), (ridge_y + 0.08, R - 0.02), (ridge_y - 0.08, R - 0.02)], x0, x1, "Prop_Plaster")
+        # timber barge boards along the gable edges
+        for ye in (yf - over, yb + over):
+            ze = E - (R - E) * over / ((yb - yf) / 2)
+            p = [(ye, ze - 0.02), (ridge_y, R - 0.02), (ridge_y, R + T + 0.04), (ye, ze + T + 0.04)]
+            if ye > 0: p = p[::-1]
+            xa, xb = sorted((sx * 3.98, sx * 4.06))
+            prism_x("Barge", p, xa, xb, "Prop_Timber")
+        # round attic vent in the gable
+        lathe("Vent", [(0.2, 0), (0.2, 0.05)], "Prop_Timber", m=2, at=(sx * 3.73, ridge_y, 2.62), rot=(0, 90, 0), smooth=False)
+        lathe("VentGlass", [(0.14, 0), (0.14, 0.06)], "Prop_WindowGlow", m=2, at=(sx * 3.73, ridge_y, 2.62), rot=(0, 90, 0), smooth=False)
+        # timber corner posts at the back
+        box("Post", sx * 3.72 - 0.1, sx * 3.72 + 0.1, yb - 0.08, yb + 0.12, 0, E, "Prop_Timber")
+    box("Plinth", -3.8, 3.8, yb - 0.02, yb + 0.1, 0, 0.32, "Prop_StoneDark")
+    box("Beam", -3.75, 3.75, yb - 0.02, yb + 0.1, E - 0.12, E, "Prop_Timber")
+    # chimney on the back slope
+    cy0, cy1 = 1.2, 1.7
+    box("Chimney", 1.8, 2.3, cy0, cy1, slope_z(cy1) - 0.1, 3.85, "Prop_StoneDark")
+    box("ChimneyBand", 1.76, 2.34, cy0 - 0.04, cy1 + 0.04, 3.55, 3.63, "Prop_Stone")
+    box("ChimneyCap", 1.74, 2.36, cy0 - 0.06, cy1 + 0.06, 3.85, 3.93, "Prop_Stone")
+    finish("Workshop_Roof")
+
+
 bpy.ops.wm.read_factory_settings(use_empty=True)
-for f in (workshop_front, clock_tower, striped_awning, market_stall, fountain, park_bench):
+import sys
+ONLY = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+for f in (workshop_front, workshop_roof, clock_tower, striped_awning, market_stall, fountain, park_bench):
+    if ONLY and f.__name__ not in ONLY: continue
     f()
 
 print("\nQA REPORT")
